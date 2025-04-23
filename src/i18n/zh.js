@@ -20,6 +20,11 @@ export default {
     },
     updating: '存储库更新中',
   },
-  noLists: '没有找到星标列表',
-  manageLists: '管理星标列表',
+  noLists: '没有找到列表',
+  viewStars: '在 GitHub 上查看星标',
+  addList: '添加',
+  createList: '创建列表',
+  addToList: '添加到列表',
+  newListPlaceholder: '新列表名称',
+  confirmDeleteList: '确定要删除列表“{0}”吗？',
 };

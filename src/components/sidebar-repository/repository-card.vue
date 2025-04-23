@@ -60,6 +60,55 @@
         <svg-icon name="branch" class="mr-1" />
         <span>{{ repository.forks_count }}</span>
       </span>
+
+      <!-- 添加到列表的下拉菜单 -->
+      <div class="relative ml-3 inline-block" v-if="tagStore.tagSrc === 'star'">
+        <button
+          @click.stop="showListDropdown = !showListDropdown"
+          class="inline-flex items-center text-gray-500 hover:text-[#76d0a3]"
+        >
+          <svg-icon name="list" class="mr-1" />
+          <span>{{ $t('addToList') || 'Add to list' }}</span>
+        </button>
+
+        <div
+          v-if="showListDropdown"
+          class="absolute left-0 top-full z-10 mt-1 w-48 rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5"
+        >
+          <div class="max-h-48 overflow-y-auto">
+            <div
+              v-for="(_, listName) in tagStore.listMap"
+              :key="listName"
+              class="cursor-pointer px-4 py-2 text-gray-700 hover:bg-gray-100"
+              @click.stop="addToList(listName)"
+            >
+              <div class="flex items-center justify-between">
+                <span>{{ listName }}</span>
+                <svg-icon
+                  v-if="isInList(listName)"
+                  name="check"
+                  class="text-[#76d0a3]"
+                />
+              </div>
+            </div>
+          </div>
+          <div class="border-t border-gray-100 px-4 py-2">
+            <input
+              v-model="newListName"
+              type="text"
+              class="mb-1 w-full rounded border border-gray-300 px-2 py-1 text-xs"
+              :placeholder="$t('newListPlaceholder') || 'New list name'"
+              @keyup.enter="createAndAddToList"
+            />
+            <button
+              class="w-full rounded bg-gray-100 px-2 py-1 text-xs hover:bg-gray-200"
+              @click.stop="createAndAddToList"
+            >
+              {{ $t('createList') || 'Create list' }}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <span>{{ repository.language }}</span>
@@ -67,10 +116,10 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { useTagStore } from '@/store/tag';
 
-defineProps({
+const props = defineProps({
   repository: {
     type: Object,
     required: true,
@@ -98,6 +147,52 @@ function handleClickTopic(e) {
     selectedTagType: 'topic',
     selectedTag: elTag.dataset.topic,
   });
+}
+
+// 列表下拉菜单
+const showListDropdown = ref(false);
+const newListName = ref('');
+
+// 点击其他地方时关闭下拉菜单
+function handleClickOutside(event) {
+  const dropdown = document.querySelector('.relative.ml-3.inline-block');
+  if (dropdown && !dropdown.contains(event.target)) {
+    showListDropdown.value = false;
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside);
+});
+
+// 检查仓库是否在列表中
+function isInList(listName) {
+  return tagStore.listMap[listName]?.includes(props.repository.id);
+}
+
+// 添加到列表
+function addToList(listName) {
+  if (isInList(listName)) {
+    tagStore.removeRepositoryFromList(props.repository.id, listName);
+  } else {
+    tagStore.addRepositoryToList(props.repository.id, listName);
+  }
+  showListDropdown.value = false;
+}
+
+// 创建新列表并添加
+function createAndAddToList() {
+  if (newListName.value.trim()) {
+    const listName = newListName.value.trim();
+    tagStore.addList(listName);
+    tagStore.addRepositoryToList(props.repository.id, listName);
+    newListName.value = '';
+    showListDropdown.value = false;
+  }
 }
 </script>
 

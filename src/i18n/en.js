@@ -20,6 +20,11 @@ export default {
     },
     updating: 'Updating repository',
   },
-  noLists: 'No starred lists found',
-  manageLists: 'Manage starred lists',
+  noLists: 'No lists found',
+  viewStars: 'View stars on GitHub',
+  addList: 'Add',
+  createList: 'Create list',
+  addToList: 'Add to list',
+  newListPlaceholder: 'New list name',
+  confirmDeleteList: 'Are you sure you want to delete the list "{0}"?',
 };

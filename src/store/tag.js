@@ -40,37 +40,20 @@ function analyzeLanguages() {
 }
 
 /**
- * 从 GitHub API 获取用户的自定义 starred lists
- * 这个函数会异步获取数据，所以需要在其他地方调用
+ * 模拟用户的自定义 starred lists
+ * 由于 GitHub API 没有直接提供获取用户自定义星标列表的端点
+ * 我们实现一个本地存储的解决方案
  */
-import { getStarredLists, getStarredListRepositories } from '@/server/github';
-
-async function fetchUserStarredLists() {
-  try {
-    // 获取用户的所有 starred lists
-    const lists = await getStarredLists();
-    const listMap = {};
-
-    // 如果有 lists，则获取每个 list 中的仓库
-    if (lists && lists.length > 0) {
-      for (const list of lists) {
-        try {
-          const repos = await getStarredListRepositories(list.id);
-          if (repos && repos.length > 0) {
-            // 将仓库 ID 存储到 map 中
-            listMap[list.name] = repos.map(repo => repo.id);
-          }
-        } catch (error) {
-          console.error(`Error fetching repositories for list ${list.name}:`, error);
-        }
-      }
-    }
-
-    return listMap;
-  } catch (error) {
-    console.error('Error fetching starred lists:', error);
-    return {};
-  }
+function getDefaultLists() {
+  // 默认列表，模拟 GitHub 的分类
+  return {
+    'Recently Added': [],
+    'Frontend': [],
+    'Backend': [],
+    'Tools': [],
+    'Learning': [],
+    'Projects': []
+  };
 }
 
 export const useTagStore = defineStore('tag', {
@@ -136,35 +119,78 @@ export const useTagStore = defineStore('tag', {
     /**
      * 获取用户的自定义 starred lists
      */
-    async fetchStarredLists() {
+    fetchStarredLists() {
       this.loadingLists = true;
 
       try {
-        // 尝试从 localStorage 获取缓存的 lists
-        const cachedLists = localStorage.getItem('gitstars_user_lists');
-        if (cachedLists) {
-          const parsedCache = JSON.parse(cachedLists);
-          if (parsedCache.timestamp && (Date.now() - parsedCache.timestamp < 24 * 60 * 60 * 1000)) {
-            this.listMap = parsedCache.lists;
-            this.loadingLists = false;
-            console.log('Using cached starred lists');
-            return;
-          }
+        // 尝试从 localStorage 获取用户自定义的 lists
+        const userLists = localStorage.getItem('gitstars_user_lists');
+        if (userLists) {
+          this.listMap = JSON.parse(userLists);
+        } else {
+          // 如果没有用户自定义的列表，使用默认列表
+          this.listMap = getDefaultLists();
+          this.saveUserLists();
         }
-
-        // 如果没有缓存或缓存过期，从 API 获取
-        const lists = await fetchUserStarredLists();
-        this.listMap = lists;
-
-        // 缓存到 localStorage
-        localStorage.setItem('gitstars_user_lists', JSON.stringify({
-          lists,
-          timestamp: Date.now()
-        }));
       } catch (error) {
-        console.error('Error in fetchStarredLists:', error);
+        console.error('Error loading user lists:', error);
+        this.listMap = getDefaultLists();
       } finally {
         this.loadingLists = false;
+      }
+    },
+
+    /**
+     * 保存用户的自定义列表
+     */
+    saveUserLists() {
+      try {
+        localStorage.setItem('gitstars_user_lists', JSON.stringify(this.listMap));
+      } catch (error) {
+        console.error('Error saving user lists:', error);
+      }
+    },
+
+    /**
+     * 添加新的列表
+     */
+    addList(listName) {
+      if (!this.listMap[listName]) {
+        this.listMap[listName] = [];
+        this.saveUserLists();
+      }
+    },
+
+    /**
+     * 删除列表
+     */
+    removeList(listName) {
+      if (this.listMap[listName]) {
+        delete this.listMap[listName];
+        this.saveUserLists();
+      }
+    },
+
+    /**
+     * 将仓库添加到列表
+     */
+    addRepositoryToList(repositoryId, listName) {
+      if (this.listMap[listName] && !this.listMap[listName].includes(repositoryId)) {
+        this.listMap[listName].push(repositoryId);
+        this.saveUserLists();
+      }
+    },
+
+    /**
+     * 从列表中移除仓库
+     */
+    removeRepositoryFromList(repositoryId, listName) {
+      if (this.listMap[listName]) {
+        const index = this.listMap[listName].indexOf(repositoryId);
+        if (index !== -1) {
+          this.listMap[listName].splice(index, 1);
+          this.saveUserLists();
+        }
       }
     },
   },

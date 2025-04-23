@@ -6,7 +6,10 @@
       <svg-icon :name="tag.icon || 'tag'" />
       <span class="ml-2">{{ tag.label }}</span>
     </div>
-    <span v-if="tag.count">{{ tag.count }}</span>
+    <div class="flex items-center">
+      <slot name="suffix"></slot>
+      <span v-if="tag.count" class="ml-1">{{ tag.count }}</span>
+    </div>
   </div>
 </template>
 
