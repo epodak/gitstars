@@ -20,4 +20,6 @@ export default {
     },
     updating: '存储库更新中',
   },
+  noLists: '没有找到星标列表',
+  manageLists: '管理星标列表',
 };

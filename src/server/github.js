@@ -18,6 +18,16 @@ export async function getReadmeByMarkdown(content) {
   });
 }
 
+// 获取用户的 starred lists
+export async function getStarredLists() {
+  return httpRequestGithub.get('/user/starred-lists');
+}
+
+// 获取特定 list 中的仓库
+export async function getStarredListRepositories(listId) {
+  return httpRequestGithub.get(`/user/starred-lists/${listId}/repos`);
+}
+
 export async function getGithubRankingLanguageList() {
   const res = await fetch(
     'https://raw.githubusercontent.com/cfour-hi/github-ranking/main/languages.json',

@@ -20,4 +20,6 @@ export default {
     },
     updating: 'Updating repository',
   },
+  noLists: 'No starred lists found',
+  manageLists: 'Manage starred lists',
 };

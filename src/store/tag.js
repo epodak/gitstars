@@ -40,50 +40,37 @@ function analyzeLanguages() {
 }
 
 /**
- * 统计分析 Lists 获取所有 list 及其对应的 repositories
- * 这里我们根据仓库的某些特征将其分组为不同的列表
+ * 从 GitHub API 获取用户的自定义 starred lists
+ * 这个函数会异步获取数据，所以需要在其他地方调用
  */
-function analyzeLists() {
-  const listMap = {};
-  const repositoryStore = useRepositoryStore();
+import { getStarredLists, getStarredListRepositories } from '@/server/github';
 
-  // 示例：按照更新时间分组
-  const recentlyUpdated = [];
-  const archived = [];
-  const highStars = [];
-  const personal = [];
+async function fetchUserStarredLists() {
+  try {
+    // 获取用户的所有 starred lists
+    const lists = await getStarredLists();
+    const listMap = {};
 
-  repositoryStore.all.forEach((repository) => {
-    // 最近更新的仓库（30天内）
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const updatedAt = new Date(repository.updated_at);
-    if (updatedAt > thirtyDaysAgo) {
-      recentlyUpdated.push(repository.id);
+    // 如果有 lists，则获取每个 list 中的仓库
+    if (lists && lists.length > 0) {
+      for (const list of lists) {
+        try {
+          const repos = await getStarredListRepositories(list.id);
+          if (repos && repos.length > 0) {
+            // 将仓库 ID 存储到 map 中
+            listMap[list.name] = repos.map(repo => repo.id);
+          }
+        } catch (error) {
+          console.error(`Error fetching repositories for list ${list.name}:`, error);
+        }
+      }
     }
 
-    // 已归档的仓库
-    if (repository.archived) {
-      archived.push(repository.id);
-    }
-
-    // 高星仓库（超过1000星）
-    if (repository.stargazers_count > 1000) {
-      highStars.push(repository.id);
-    }
-
-    // 个人仓库（非组织）
-    if (repository.owner.type === 'User') {
-      personal.push(repository.id);
-    }
-  });
-
-  if (recentlyUpdated.length > 0) listMap['Recently Updated'] = recentlyUpdated;
-  if (archived.length > 0) listMap['Archived'] = archived;
-  if (highStars.length > 0) listMap['High Stars'] = highStars;
-  if (personal.length > 0) listMap['Personal'] = personal;
-
-  return listMap;
+    return listMap;
+  } catch (error) {
+    console.error('Error fetching starred lists:', error);
+    return {};
+  }
 }
 
 export const useTagStore = defineStore('tag', {
@@ -127,9 +114,13 @@ export const useTagStore = defineStore('tag', {
      */
     languageMap: {},
     /**
-     * Lists
+     * Lists - 用户的自定义 starred lists
      */
     listMap: {},
+    /**
+     * 是否正在加载 lists
+     */
+    loadingLists: false,
   }),
 
   actions: {
@@ -139,7 +130,42 @@ export const useTagStore = defineStore('tag', {
     analyze() {
       this.topicMap = analyzeTopics();
       this.languageMap = analyzeLanguages();
-      this.listMap = analyzeLists();
+      this.fetchStarredLists();
+    },
+
+    /**
+     * 获取用户的自定义 starred lists
+     */
+    async fetchStarredLists() {
+      this.loadingLists = true;
+
+      try {
+        // 尝试从 localStorage 获取缓存的 lists
+        const cachedLists = localStorage.getItem('gitstars_user_lists');
+        if (cachedLists) {
+          const parsedCache = JSON.parse(cachedLists);
+          if (parsedCache.timestamp && (Date.now() - parsedCache.timestamp < 24 * 60 * 60 * 1000)) {
+            this.listMap = parsedCache.lists;
+            this.loadingLists = false;
+            console.log('Using cached starred lists');
+            return;
+          }
+        }
+
+        // 如果没有缓存或缓存过期，从 API 获取
+        const lists = await fetchUserStarredLists();
+        this.listMap = lists;
+
+        // 缓存到 localStorage
+        localStorage.setItem('gitstars_user_lists', JSON.stringify({
+          lists,
+          timestamp: Date.now()
+        }));
+      } catch (error) {
+        console.error('Error in fetchStarredLists:', error);
+      } finally {
+        this.loadingLists = false;
+      }
     },
   },
 });
