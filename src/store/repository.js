@@ -99,6 +99,17 @@ export const useRepositoryStore = defineStore('repository', {
               repositoryIds.includes(repository.id),
             );
           }
+        } else if (tagStore.selectedTagType === 'list') {
+          /**
+           * 当前选中的 tag 属于 Lists
+           * 从 listMap 找到 tag 及其对应的 repositories id
+           */
+          const repositoryIds = tagStore.listMap[tagStore.selectedTag];
+          if (repositoryIds) {
+            repositoriesTmp = state.all.filter((repository) =>
+              repositoryIds.includes(repository.id),
+            );
+          }
         }
       } else if (tagStore.tagSrc === 'ranking') {
         if (rankingStore.selectedLanguage) {

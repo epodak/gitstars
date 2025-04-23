@@ -39,6 +39,53 @@ function analyzeLanguages() {
   return languageMap;
 }
 
+/**
+ * 统计分析 Lists 获取所有 list 及其对应的 repositories
+ * 这里我们根据仓库的某些特征将其分组为不同的列表
+ */
+function analyzeLists() {
+  const listMap = {};
+  const repositoryStore = useRepositoryStore();
+
+  // 示例：按照更新时间分组
+  const recentlyUpdated = [];
+  const archived = [];
+  const highStars = [];
+  const personal = [];
+
+  repositoryStore.all.forEach((repository) => {
+    // 最近更新的仓库（30天内）
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const updatedAt = new Date(repository.updated_at);
+    if (updatedAt > thirtyDaysAgo) {
+      recentlyUpdated.push(repository.id);
+    }
+
+    // 已归档的仓库
+    if (repository.archived) {
+      archived.push(repository.id);
+    }
+
+    // 高星仓库（超过1000星）
+    if (repository.stargazers_count > 1000) {
+      highStars.push(repository.id);
+    }
+
+    // 个人仓库（非组织）
+    if (repository.owner.type === 'User') {
+      personal.push(repository.id);
+    }
+  });
+
+  if (recentlyUpdated.length > 0) listMap['Recently Updated'] = recentlyUpdated;
+  if (archived.length > 0) listMap['Archived'] = archived;
+  if (highStars.length > 0) listMap['High Stars'] = highStars;
+  if (personal.length > 0) listMap['Personal'] = personal;
+
+  return listMap;
+}
+
 export const useTagStore = defineStore('tag', {
   state: () => ({
     /**
@@ -79,6 +126,10 @@ export const useTagStore = defineStore('tag', {
      * Languages
      */
     languageMap: {},
+    /**
+     * Lists
+     */
+    listMap: {},
   }),
 
   actions: {
@@ -88,6 +139,7 @@ export const useTagStore = defineStore('tag', {
     analyze() {
       this.topicMap = analyzeTopics();
       this.languageMap = analyzeLanguages();
+      this.listMap = analyzeLists();
     },
   },
 });

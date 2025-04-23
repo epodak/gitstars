@@ -29,6 +29,7 @@
       <section class="flex-auto overflow-auto">
         <TagListLanguage v-show="tagStore.selectedTagTypeNav === 'language'" />
         <TagListTopic v-show="tagStore.selectedTagTypeNav === 'topic'" />
+        <TagListLists v-show="tagStore.selectedTagTypeNav === 'list'" />
       </section>
 
       <TagTypeNav />
@@ -50,6 +51,7 @@ import TagItem from '../tag-item.vue';
 import TagSearch from '../tag-search.vue';
 import TagListTopic from './tag-list-topic.vue';
 import TagListLanguage from './tag-list-language.vue';
+import TagListLists from './tag-list-lists.vue';
 import TagTypeNav from './tag-type-nav.vue';
 
 const tagStore = useTagStore();
