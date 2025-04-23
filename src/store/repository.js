@@ -2,6 +2,9 @@ import { nextTick } from 'vue';
 import { defineStore } from 'pinia';
 import { getStarredRepositories } from '@/server/github';
 import { STARRED_REPOS } from '@/constants';
+
+// 缓存过期时间（毫秒）- 24小时
+const CACHE_EXPIRY = 24 * 60 * 60 * 1000;
 import { useTagStore } from '@/store/tag';
 import { useRankingStore } from '@/store/ranking';
 
@@ -169,26 +172,55 @@ export const useRepositoryStore = defineStore('repository', {
      */
     async resolveRepositories() {
       this.loading = true;
-      let localRepositories = localStorage.getItem(STARRED_REPOS);
+      let localData = localStorage.getItem(STARRED_REPOS);
+      let shouldFetchFromAPI = true;
 
-      if (localRepositories) {
-        localRepositories = JSON.parse(localRepositories);
-        this.all = localRepositories;
+      if (localData) {
+        try {
+          const parsedData = JSON.parse(localData);
+
+          // 检查是否有缓存时间戳
+          if (parsedData.timestamp && parsedData.repositories) {
+            const now = Date.now();
+            // 如果缓存未过期，使用缓存数据
+            if (now - parsedData.timestamp < CACHE_EXPIRY) {
+              this.all = parsedData.repositories;
+              shouldFetchFromAPI = false;
+              console.log('Using cached repositories data');
+            } else {
+              console.log('Cache expired, fetching fresh data');
+            }
+          } else if (Array.isArray(parsedData)) {
+            // 兼容旧版本存储格式
+            this.all = parsedData;
+          }
+        } catch (error) {
+          console.error('Error parsing cached repositories:', error);
+        }
       }
 
-      nextTick(async () => {
-        // 开发环境默认不通过 HTTP 更新 repositories
-        // if (!import.meta.env.DEV || this.all.length === 0) {
-        const repos = await rsolveRepositoriesByHTTP();
-        // 先清空，避免新老数据 DIFF 过程中更新 DOM 导致页面崩溃
-        this.all = [];
+      // 如果需要从API获取数据
+      if (shouldFetchFromAPI) {
+        nextTick(async () => {
+          try {
+            const repos = await rsolveRepositoriesByHTTP();
+            // 先清空，避免新老数据 DIFF 过程中更新 DOM 导致页面崩溃
+            this.all = [];
 
-        nextTick(() => {
-          this.all = repos;
-          localStorage.setItem(STARRED_REPOS, JSON.stringify(this.all));
+            nextTick(() => {
+              this.all = repos;
+              // 存储数据和时间戳
+              const dataToCache = {
+                repositories: repos,
+                timestamp: Date.now()
+              };
+              localStorage.setItem(STARRED_REPOS, JSON.stringify(dataToCache));
+            });
+          } catch (error) {
+            console.error('Error fetching repositories:', error);
+          }
         });
-        // }
-      });
+      }
 
       this.loading = false;
     },
